@@ -466,8 +466,7 @@ begin
             FRxState := rsLen;
             FRxMult := 1;
             FRxVal := 0;
-            if Assigned (FOnHeader) then
-              FOnHeader (Self, RxMsg, RxDup, RxQos, RxRetain);
+            if Assigned (FOnHeader) then FOnHeader (Self, RxMsg, RxDup, RxQos, RxRetain);
           end;
         rsLen :
           begin
@@ -547,7 +546,10 @@ begin
                     if FRxStream.Size >= 4 then
                       begin
                         aStr := ReadStr (FRxStream);
-                        id := ReadByte (FRxStream) * $100 + ReadByte (FRxStream);
+                        if RxQos in [qtAT_LEAST_ONCE, qtEXACTLY_ONCE] then
+                          id := ReadByte (FRxStream) * $100 + ReadByte (FRxStream)
+                        else
+                          id := 0;
                         SetLength (s, FRxStream.Size - FRxStream.Position);
                         if length (s) > 0 then FRxStream.Read (s[1], length (s));
 //                        log ('publish "' + aStr + '"   "' + display (s) + '"');
@@ -749,8 +751,11 @@ begin
   AddHdr (FTxStream, mtPUBLISH, aDup, aQos, aRetain);
   s := TMemoryStream.Create;
   AddStr (s, aTopic);
-  AddByte (s, anID div $100);
-  AddByte (s, anID mod $100);
+  if aQos in [qtAT_LEAST_ONCE, qtEXACTLY_ONCE] then
+    begin
+      AddByte (s, anID div $100);
+      AddByte (s, anID mod $100);
+    end;
   if length (aMessage) > 0 then
     s.Write (aMessage[1], length (aMessage));
   // payload
